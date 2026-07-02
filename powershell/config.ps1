@@ -43,20 +43,23 @@ $FunctionRuntimeVersion = "3.11"
 $FunctionsVersion = "4"
 
 # ==========================================
-# Network
+# Networking
 # ==========================================
 
 $VNetName = "vnet-hajar-cli"
-
 $VNetAddressPrefix = "10.0.0.0/16"
 
-$FrontendSubnet = "subnet-frontend"
-$FrontendPrefix = "10.0.1.0/24"
+$FrontendSubnetName = "subnet-frontend"
+$FrontendSubnetPrefix = "10.0.1.0/24"
 
-$BackendSubnet = "subnet-backend"
-$BackendPrefix = "10.0.2.0/24"
+$BackendSubnetName = "subnet-backend"
+$BackendSubnetPrefix = "10.0.2.0/24"
 
-$NSGName = "nsg-frontend-hajar-cli"
+$NSGName = "nsg-hajar-cli"
+
+$HttpRuleName = "Allow-HTTP"
+$HttpsRuleName = "Allow-HTTPS"
+$DenyRuleName = "Deny-All-Inbound"
 
 # ===========================
 # Azure Container Instance

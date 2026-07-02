@@ -232,6 +232,223 @@ else {
 }
 
 # ==========================================
+# Virtual Network
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking Virtual Network..."
+
+$VNetExists = az network vnet show `
+    --resource-group $ResourceGroup `
+    --name $VNetName `
+    --query name `
+    -o tsv 2>$null
+
+if ($VNetExists) {
+    Write-Host "Virtual Network already exists."
+}
+else {
+    Write-Host "Creating Virtual Network with frontend subnet..."
+
+    az network vnet create `
+        --resource-group $ResourceGroup `
+        --location $Location `
+        --name $VNetName `
+        --address-prefix $VNetAddressPrefix `
+        --subnet-name $FrontendSubnetName `
+        --subnet-prefixes $FrontendSubnetPrefix `
+        --tags $Tags
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Virtual Network creation failed."
+        exit 1
+    }
+}
+
+# ==========================================
+# Backend Subnet
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking Backend Subnet..."
+
+$BackendSubnetExists = az network vnet subnet show `
+    --resource-group $ResourceGroup `
+    --vnet-name $VNetName `
+    --name $BackendSubnetName `
+    --query name `
+    -o tsv 2>$null
+
+if ($BackendSubnetExists) {
+    Write-Host "Backend Subnet already exists."
+}
+else {
+    Write-Host "Creating Backend Subnet..."
+
+    az network vnet subnet create `
+        --resource-group $ResourceGroup `
+        --vnet-name $VNetName `
+        --name $BackendSubnetName `
+        --address-prefixes $BackendSubnetPrefix
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Backend Subnet creation failed."
+        exit 1
+    }
+}
+
+# ==========================================
+# Network Security Group
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking Network Security Group..."
+
+$NSGExists = az network nsg show `
+    --resource-group $ResourceGroup `
+    --name $NSGName `
+    --query name `
+    -o tsv 2>$null
+
+if ($NSGExists) {
+    Write-Host "Network Security Group already exists."
+}
+else {
+    Write-Host "Creating Network Security Group..."
+
+    az network nsg create `
+        --resource-group $ResourceGroup `
+        --location $Location `
+        --name $NSGName `
+        --tags $Tags
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Network Security Group creation failed."
+        exit 1
+    }
+}
+
+# ==========================================
+# NSG Rule - HTTP
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking HTTP rule..."
+
+$HttpRuleExists = az network nsg rule show `
+    --resource-group $ResourceGroup `
+    --nsg-name $NSGName `
+    --name $HttpRuleName `
+    --query name `
+    -o tsv 2>$null
+
+if ($HttpRuleExists) {
+    Write-Host "HTTP rule already exists."
+}
+else {
+    Write-Host "Creating HTTP rule..."
+
+    az network nsg rule create `
+        --resource-group $ResourceGroup `
+        --nsg-name $NSGName `
+        --name $HttpRuleName `
+        --priority 100 `
+        --direction Inbound `
+        --access Allow `
+        --protocol Tcp `
+        --source-address-prefix "*" `
+        --source-port-range "*" `
+        --destination-address-prefix "*" `
+        --destination-port-range 80
+}
+
+# ==========================================
+# NSG Rule - HTTPS
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking HTTPS rule..."
+
+$HttpsRuleExists = az network nsg rule show `
+    --resource-group $ResourceGroup `
+    --nsg-name $NSGName `
+    --name $HttpsRuleName `
+    --query name `
+    -o tsv 2>$null
+
+if ($HttpsRuleExists) {
+    Write-Host "HTTPS rule already exists."
+}
+else {
+    Write-Host "Creating HTTPS rule..."
+
+    az network nsg rule create `
+        --resource-group $ResourceGroup `
+        --nsg-name $NSGName `
+        --name $HttpsRuleName `
+        --priority 110 `
+        --direction Inbound `
+        --access Allow `
+        --protocol Tcp `
+        --source-address-prefix "*" `
+        --source-port-range "*" `
+        --destination-address-prefix "*" `
+        --destination-port-range 443
+}
+
+# ==========================================
+# NSG Rule - Deny All Inbound
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking Deny-All-Inbound rule..."
+
+$DenyRuleExists = az network nsg rule show `
+    --resource-group $ResourceGroup `
+    --nsg-name $NSGName `
+    --name $DenyRuleName `
+    --query name `
+    -o tsv 2>$null
+
+if ($DenyRuleExists) {
+    Write-Host "Deny-All-Inbound rule already exists."
+}
+else {
+    Write-Host "Creating Deny-All-Inbound rule..."
+
+    az network nsg rule create `
+        --resource-group $ResourceGroup `
+        --nsg-name $NSGName `
+        --name $DenyRuleName `
+        --priority 4000 `
+        --direction Inbound `
+        --access Deny `
+        --protocol "*" `
+        --source-address-prefix "*" `
+        --source-port-range "*" `
+        --destination-address-prefix "*" `
+        --destination-port-range "*"
+}
+
+# ==========================================
+# Associate NSG to Frontend Subnet
+# ==========================================
+
+Write-Host ""
+Write-Host "Associating NSG with frontend subnet..."
+
+az network vnet subnet update `
+    --resource-group $ResourceGroup `
+    --vnet-name $VNetName `
+    --name $FrontendSubnetName `
+    --network-security-group $NSGName
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: NSG association failed."
+    exit 1
+}
+
+# ==========================================
 # Outputs
 # ==========================================
 

@@ -1,0 +1,42 @@
+name: Weekly Azure Cleanup
+
+# Workflow triggers:
+on:
+  # Automatic execution every Friday 18:00 UTC
+  schedule:
+    - cron: "0 18 * * 5"
+
+  # Allow manual execution from GitHub Actions UI
+  workflow_dispatch:
+
+# Required for Azure OIDC login
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Download repository files
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Login to Azure using OIDC
+      # Uses GitHub secrets:
+      # - AZURE_CLIENT_ID
+      # - AZURE_TENANT_ID
+      # - AZURE_SUBSCRIPTION_ID
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Run cleanup script
+      - name: Cleanup tagged resources
+        shell: pwsh
+        run: |
+          ./powershell/destroy.ps1
