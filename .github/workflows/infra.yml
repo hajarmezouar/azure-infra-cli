@@ -1,0 +1,47 @@
+name: Azure Infrastructure Workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "Choose action: provision or destroy"
+        required: true
+        default: "provision"
+        type: choice
+        options:
+          - provision
+          - destroy
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  infra:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Verify Azure Account
+        run: az account show
+
+      - name: Provision infrastructure
+        if: ${{ github.event.inputs.action == 'provision' }}
+        shell: pwsh
+        run: |
+          ./powershell/provision.ps1
+
+      - name: Destroy infrastructure
+        if: ${{ github.event.inputs.action == 'destroy' }}
+        shell: pwsh
+        run: |
+          ./powershell/destroy.ps1

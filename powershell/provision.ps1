@@ -7,28 +7,15 @@
 
 Write-Host ""
 Write-Host "===================================="
-Write-Host "Creating Storage Account"
+Write-Host "Provision Azure Infrastructure"
 Write-Host "===================================="
 
-az storage account create `
-    --name $StorageAccountName `
-    --resource-group $ResourceGroup `
-    --location $Location `
-    --sku $StorageSku
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "ERROR: Storage Account creation failed."
-    exit 1
-}
+# ==========================================
+# Retrieve Shared App Service Plan
+# ==========================================
 
 Write-Host ""
-Write-Host "Storage Account created successfully."
-
-Write-Host ""
-Write-Host "===================================="
-Write-Host "Retrieving App Service Plan"
-Write-Host "===================================="
+Write-Host "Retrieving App Service Plan..."
 
 $AppServicePlanId = az appservice plan show `
     --resource-group $SharedPlanResourceGroup `
@@ -37,34 +24,217 @@ $AppServicePlanId = az appservice plan show `
     -o tsv
 
 if (-not $AppServicePlanId) {
-    Write-Host "ERROR: App Service Plan not found."
+    Write-Host "ERROR: Shared App Service Plan not found."
     exit 1
+}
+
+# ==========================================
+# Storage Account
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking Storage Account..."
+
+$StorageExists = az storage account show `
+    --name $StorageAccountName `
+    --resource-group $ResourceGroup `
+    --query name `
+    -o tsv 2>$null
+
+if ($StorageExists) {
+
+    Write-Host "Storage Account already exists."
+
+}
+else {
+
+    Write-Host "Creating Storage Account..."
+
+    az storage account create `
+        --name $StorageAccountName `
+        --resource-group $ResourceGroup `
+        --location $Location `
+        --sku $StorageSku `
+        --tags $Tags
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Storage Account creation failed."
+        exit 1
+    }
+}
+
+# ==========================================
+# Web App
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking Web App..."
+
+$WebAppExists = az webapp show `
+    --resource-group $ResourceGroup `
+    --name $WebAppName `
+    --query name `
+    -o tsv 2>$null
+
+if ($WebAppExists) {
+
+    Write-Host "Web App already exists."
+
+}
+else {
+
+    Write-Host "Creating Web App..."
+
+    az webapp create `
+        --resource-group $ResourceGroup `
+        --plan $AppServicePlanId `
+        --name $WebAppName `
+        --runtime $Runtime `
+        --tags $Tags
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Web App creation failed."
+        exit 1
+    }
+}
+
+# ==========================================
+# Function Storage Account
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking Function Storage Account..."
+
+$FunctionStorageExists = az storage account show `
+    --name $FunctionStorageAccountName `
+    --resource-group $ResourceGroup `
+    --query name `
+    -o tsv 2>$null
+
+if ($FunctionStorageExists) {
+
+    Write-Host "Function Storage Account already exists."
+
+}
+else {
+
+    Write-Host "Creating Function Storage Account..."
+
+    az storage account create `
+        --name $FunctionStorageAccountName `
+        --resource-group $ResourceGroup `
+        --location $Location `
+        --sku $FunctionStorageSku `
+        --tags $Tags
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Function Storage creation failed."
+        exit 1
+    }
+}
+
+# ==========================================
+# Function App
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking Function App..."
+
+$FunctionExists = az functionapp show `
+    --resource-group $ResourceGroup `
+    --name $FunctionAppName `
+    --query name `
+    -o tsv 2>$null
+
+if ($FunctionExists) {
+
+    Write-Host "Function App already exists."
+
+}
+else {
+
+    Write-Host "Creating Function App..."
+
+    az functionapp create `
+        --resource-group $ResourceGroup `
+        --plan "$AppServicePlanId" `
+        --name $FunctionAppName `
+        --storage-account $FunctionStorageAccountName `
+        --runtime $FunctionRuntime `
+        --runtime-version $FunctionRuntimeVersion `
+        --functions-version $FunctionsVersion `
+        --os-type Linux `
+        --tags $Tags
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Function App creation failed."
+        exit 1
+    }
+
+    Write-Host "Function App created successfully."
 }
 
 Write-Host ""
-Write-Host "===================================="
-Write-Host "Creating Web App"
-Write-Host "===================================="
+Write-Host "Checking Azure Container Instance..."
 
-az webapp create `
+$ContainerExists = az container show `
     --resource-group $ResourceGroup `
-    --plan $AppServicePlanId `
-    --name $WebAppName `
-    --runtime $Runtime
+    --name $ContainerGroupName `
+    --query name `
+    -o tsv 2>$null
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Web App deployment failed."
-    exit 1
+if ($ContainerExists) {
+
+    Write-Host "Container Instance already exists."
+
+}
+else {
+
+    Write-Host "Creating Container Instance..."
+
+    az container create `
+        --resource-group $ResourceGroup `
+        --name $ContainerGroupName `
+        --image $ContainerImage `
+        --dns-name-label $ContainerDnsName `
+        --ports 80 `
+        --cpu $ContainerCpu `
+        --memory $ContainerMemory `
+        --tags $Tags
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Container Instance creation failed."
+        exit 1
+    }
 }
 
-$HostName = az webapp show `
+# ==========================================
+# Outputs
+# ==========================================
+
+Write-Host ""
+Write-Host "===================================="
+Write-Host "Deployment completed successfully!"
+Write-Host "===================================="
+
+$WebAppUrl = az webapp show `
     --resource-group $ResourceGroup `
     --name $WebAppName `
     --query defaultHostName `
     -o tsv
 
-Write-Host ""
-Write-Host "Application URL:"
-Write-Host "https://$HostName"
+$FunctionUrl = az functionapp show `
+    --resource-group $ResourceGroup `
+    --name $FunctionAppName `
+    --query defaultHostName `
+    -o tsv
 
-Start-Process "https://$HostName"
+Write-Host ""
+Write-Host "Web App URL:"
+Write-Host "https://$WebAppUrl"
+
+Write-Host ""
+Write-Host "Function App URL:"
+Write-Host "https://$FunctionUrl"
+
+Start-Process "https://$WebAppUrl"

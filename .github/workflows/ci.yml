@@ -15,7 +15,7 @@ permissions:
 
 jobs:
 
-  validate-and-login:
+  validate:
 
     runs-on: ubuntu-latest
 
@@ -32,18 +32,61 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Verify Azure CLI
-        run: az account show
+        run: |
+          az account show
+          az version
+
+      # ----------------------------
+      # PowerShell Syntax
+      # ----------------------------
 
       - name: Validate PowerShell scripts
         shell: pwsh
         run: |
           Get-ChildItem powershell -Filter *.ps1 |
           ForEach-Object {
+
             [System.Management.Automation.Language.Parser]::ParseFile(
               $_.FullName,
               [ref]$null,
               [ref]$null
             ) | Out-Null
 
-            Write-Host "$($_.Name) OK"
+            Write-Host "✔ $($_.Name)"
           }
+
+      # ----------------------------
+      # PowerShell Best Practices
+      # ----------------------------
+
+      - name: Install PSScriptAnalyzer
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+
+      - name: Analyze PowerShell
+        shell: pwsh
+        run: |
+          Invoke-ScriptAnalyzer -Path powershell -Recurse
+
+      # ----------------------------
+      # Bash Syntax
+      # ----------------------------
+
+      - name: Validate Bash scripts
+        run: |
+          bash -n bash/provision.sh
+          bash -n bash/destroy.sh
+
+      # ----------------------------
+      # ShellCheck
+      # ----------------------------
+
+      - name: Install ShellCheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Analyze Bash
+        run: |
+          shellcheck bash/*.sh

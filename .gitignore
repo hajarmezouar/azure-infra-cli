@@ -1,0 +1,19 @@
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.bak
+
+# Environment variables
+.env
+
+# Azure CLI
+.azure/
+
+# Terraform
+*.tfstate
+*.tfstate.*
