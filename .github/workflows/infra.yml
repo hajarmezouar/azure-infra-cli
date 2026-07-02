@@ -1,10 +1,10 @@
-name: Azure Infrastructure Workflow
+name: Azure Infrastructure
 
 on:
   workflow_dispatch:
     inputs:
       action:
-        description: "Choose action: provision or destroy"
+        description: "Choose the infrastructure action"
         required: true
         default: "provision"
         type: choice
@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 jobs:
-  infra:
+  infrastructure:
     runs-on: ubuntu-latest
 
     steps:
@@ -31,7 +31,7 @@ jobs:
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
-      - name: Verify Azure Account
+      - name: Verify Azure account
         run: az account show
 
       - name: Provision infrastructure
