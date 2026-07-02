@@ -25,11 +25,11 @@ Write-Host "Deleting Azure Infrastructure"
 Write-Host "===================================="
 
 # ==========================================
-# Remove NSG association from frontend subnet
+# Remove NSG association from Frontend Subnet
 # ==========================================
 
 Write-Host ""
-Write-Host "Checking frontend subnet..."
+Write-Host "Checking Frontend Subnet NSG association..."
 
 $FrontendSubnetExists = az network vnet subnet show `
     --resource-group $ResourceGroup `
@@ -39,16 +39,23 @@ $FrontendSubnetExists = az network vnet subnet show `
     -o tsv 2>$null
 
 if ($FrontendSubnetExists) {
-    Write-Host "Removing NSG association from frontend subnet..."
+
+    Write-Host "Removing NSG association from Frontend Subnet..."
 
     az network vnet subnet update `
         --resource-group $ResourceGroup `
         --vnet-name $VNetName `
         --name $FrontendSubnetName `
-        --network-security-group "" 2>$null
+        --network-security-group null
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Failed to remove NSG association from subnet."
+        exit 1
+    }
+
 }
 else {
-    Write-Host "Frontend subnet already deleted."
+    Write-Host "Frontend Subnet already deleted."
 }
 
 # ==========================================
@@ -65,11 +72,18 @@ $NSGExists = az network nsg show `
     -o tsv 2>$null
 
 if ($NSGExists) {
+
     Write-Host "Deleting Network Security Group..."
 
     az network nsg delete `
         --resource-group $ResourceGroup `
         --name $NSGName
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Network Security Group deletion failed."
+        exit 1
+    }
+
 }
 else {
     Write-Host "Network Security Group already deleted."
@@ -196,6 +210,43 @@ if ($WebAppExists) {
 }
 else {
     Write-Host "Web App already deleted."
+}
+
+# ==========================================
+# Blob Storage Containers
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking Blob Storage containers..."
+
+$StorageExists = az storage account show `
+    --name $StorageAccountName `
+    --resource-group $ResourceGroup `
+    --query name `
+    -o tsv 2>$null
+
+if ($StorageExists) {
+
+    $StorageConnectionString = az storage account show-connection-string `
+        --name $StorageAccountName `
+        --resource-group $ResourceGroup `
+        --query connectionString `
+        -o tsv
+
+    Write-Host "Deleting private blob container..."
+
+    az storage container delete `
+        --name $PrivateBlobContainerName `
+        --connection-string $StorageConnectionString 2>$null
+
+    Write-Host "Deleting public blob container..."
+
+    az storage container delete `
+        --name $PublicBlobContainerName `
+        --connection-string $StorageConnectionString 2>$null
+}
+else {
+    Write-Host "Main Storage Account already deleted."
 }
 
 # ==========================================
