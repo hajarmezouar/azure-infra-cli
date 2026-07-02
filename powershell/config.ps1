@@ -13,7 +13,7 @@ $SharedPlanResourceGroup = "rg-shared-prf2026"
 $AppServicePlan = "plan-npr-prf2026"
 
 # Tags
-$Tags = "managed_by=cli"
+$Tags = "managed_by=cli project=azure-infra-cli owner=hajar environment=tp"
 
 # ===========================
 # Storage Account
@@ -21,6 +21,16 @@ $Tags = "managed_by=cli"
 
 $StorageAccountName = "sthajarprf2026"
 $StorageSku = "Standard_LRS"
+
+# ===========================
+# Blob Storage Containers
+# ===========================
+
+$PrivateBlobContainerName = "api-logs"
+$PublicBlobContainerName = "api-config"
+
+$AccessLogFileName = "access-log.txt"
+$ConfigFileName = "config.json"
 
 # ===========================
 # Web App
@@ -66,11 +76,7 @@ $DenyRuleName = "Deny-All-Inbound"
 # ===========================
 
 $ContainerGroupName = "aci-hajar"
-
 $ContainerImage = "mcr.microsoft.com/azuredocs/aci-helloworld"
-
 $ContainerDnsName = "aci-hajar"
-
 $ContainerCpu = 1
-
 $ContainerMemory = 1.5

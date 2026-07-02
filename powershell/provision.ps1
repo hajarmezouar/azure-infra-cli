@@ -55,6 +55,8 @@ else {
         --resource-group $ResourceGroup `
         --location $Location `
         --sku $StorageSku `
+        --kind StorageV2 `
+        --allow-blob-public-access true `
         --tags $Tags
 
     if ($LASTEXITCODE -ne 0) {
@@ -62,6 +64,167 @@ else {
         exit 1
     }
 }
+
+# ==========================================
+# Blob Storage Containers
+# ==========================================
+
+Write-Host ""
+Write-Host "Configuring Blob Storage containers..."
+
+# Retrieve the Storage Account connection string.
+# This is used by az storage container/blob commands.
+$StorageConnectionString = az storage account show-connection-string `
+    --name $StorageAccountName `
+    --resource-group $ResourceGroup `
+    --query connectionString `
+    -o tsv
+
+if (-not $StorageConnectionString) {
+    Write-Host "ERROR: Unable to retrieve Storage Account connection string."
+    exit 1
+}
+
+# ==========================================
+# Private container: api-logs
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking private blob container..."
+
+$PrivateContainerExists = az storage container exists `
+    --name $PrivateBlobContainerName `
+    --connection-string $StorageConnectionString `
+    --query exists `
+    -o tsv
+
+if ($PrivateContainerExists -eq "true") {
+    Write-Host "Private blob container already exists."
+}
+else {
+    Write-Host "Creating private blob container..."
+
+    az storage container create `
+        --name $PrivateBlobContainerName `
+        --public-access off `
+        --connection-string $StorageConnectionString
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Private blob container creation failed."
+        exit 1
+    }
+}
+
+# ==========================================
+# Public container: api-config
+# ==========================================
+
+Write-Host ""
+Write-Host "Checking public blob container..."
+
+$PublicContainerExists = az storage container exists `
+    --name $PublicBlobContainerName `
+    --connection-string $StorageConnectionString `
+    --query exists `
+    -o tsv
+
+if ($PublicContainerExists -eq "true") {
+    Write-Host "Public blob container already exists."
+}
+else {
+    Write-Host "Creating public blob container..."
+
+    az storage container create `
+        --name $PublicBlobContainerName `
+        --public-access blob `
+        --connection-string $StorageConnectionString
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Public blob container creation failed."
+        exit 1
+    }
+}
+
+# ==========================================
+# Create local sample files
+# ==========================================
+
+Write-Host ""
+Write-Host "Creating sample files..."
+
+$AccessLogPath = Join-Path $PSScriptRoot "..\access-log.txt"
+$ConfigJsonPath = Join-Path $PSScriptRoot "..\config.json"
+
+@"
+2026-07-02 09:12:33 - GET /api/hello - 200 OK - 45ms - App Service
+2026-07-02 09:12:47 - GET /api/hello - 200 OK - 12ms - Azure Functions
+2026-07-02 09:13:01 - GET /api/hello - 200 OK - 38ms - Container Instances
+"@ | Out-File -FilePath $AccessLogPath -Encoding utf8 -Force
+
+@"
+{
+  "app": "AzureTech",
+  "version": "1.0",
+  "environment": "training",
+  "endpoints": [
+    "/api/hello",
+    "/api/status"
+  ]
+}
+"@ | Out-File -FilePath $ConfigJsonPath -Encoding utf8 -Force
+
+# ==========================================
+# Upload access-log.txt to private container
+# ==========================================
+
+Write-Host ""
+Write-Host "Uploading access-log.txt to private container..."
+
+az storage blob upload `
+    --container-name $PrivateBlobContainerName `
+    --file $AccessLogPath `
+    --name $AccessLogFileName `
+    --connection-string $StorageConnectionString `
+    --overwrite
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: access-log.txt upload failed."
+    exit 1
+}
+
+# ==========================================
+# Upload config.json to public container
+# ==========================================
+
+Write-Host ""
+Write-Host "Uploading config.json to public container..."
+
+az storage blob upload `
+    --container-name $PublicBlobContainerName `
+    --file $ConfigJsonPath `
+    --name $ConfigFileName `
+    --content-type "application/json" `
+    --connection-string $StorageConnectionString `
+    --overwrite
+
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERROR: config.json upload failed."
+    exit 1
+}
+
+# ==========================================
+# Display public config URL
+# ==========================================
+
+$ConfigUrl = az storage blob url `
+    --container-name $PublicBlobContainerName `
+    --name $ConfigFileName `
+    --connection-string $StorageConnectionString `
+    -o tsv
+
+Write-Host ""
+Write-Host "Public config.json URL:"
+Write-Host $ConfigUrl
 
 # ==========================================
 # Web App

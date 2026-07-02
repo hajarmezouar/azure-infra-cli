@@ -21,3 +21,6 @@
 app.zip
 __pycache__/
 *.pyc
+
+access-log.txt
+config.json

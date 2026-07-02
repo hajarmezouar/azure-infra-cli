@@ -21,6 +21,18 @@ This repository automates the creation, validation, deployment, and cleanup of A
 - Network Security Group (NSG)
 - HTTP / HTTPS filtering rules
 
+### Storage
+
+The project provisions a Storage Account with two Blob containers:
+
+- `api-logs`: private container for API logs
+- `api-config`: public container for configuration files
+
+Sample files are uploaded during provisioning:
+
+- `access-log.txt`
+- `config.json`
+
 ### Automation
 - PowerShell provisioning scripts
 - Bash provisioning scripts
