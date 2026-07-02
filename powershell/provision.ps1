@@ -204,6 +204,7 @@ else {
         --ports 80 `
         --cpu $ContainerCpu `
         --memory $ContainerMemory
+        --os-type Linux
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Container Instance creation failed."
