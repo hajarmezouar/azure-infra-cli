@@ -3,7 +3,7 @@
 # ==========================================
 
 # Resource Group
-$ResourceGroup = "rg-hajar-mezouar-prf2026"
+$ResourceGroup = "hmezouarRG"
 
 # Azure Region
 $Location = "francecentral"
