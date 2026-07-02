@@ -174,6 +174,10 @@ else {
     Write-Host "Function App created successfully."
 }
 
+# ==========================================
+# Azure Container Instance
+# ==========================================
+
 Write-Host ""
 Write-Host "Checking Azure Container Instance..."
 
@@ -199,13 +203,31 @@ else {
         --dns-name-label $ContainerDnsName `
         --ports 80 `
         --cpu $ContainerCpu `
-        --memory $ContainerMemory `
-        --tags $Tags
+        --memory $ContainerMemory
 
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Container Instance creation failed."
         exit 1
     }
+
+    Write-Host "Tagging Container Instance..."
+
+    $ContainerId = az container show `
+        --resource-group $ResourceGroup `
+        --name $ContainerGroupName `
+        --query id `
+        -o tsv
+
+    az resource tag `
+        --ids $ContainerId `
+        --tags $Tags
+
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "ERROR: Container Instance tagging failed."
+        exit 1
+    }
+
+    Write-Host "Container Instance created successfully."
 }
 
 # ==========================================
