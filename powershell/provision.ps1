@@ -203,7 +203,7 @@ else {
         --dns-name-label $ContainerDnsName `
         --ports 80 `
         --cpu $ContainerCpu `
-        --memory $ContainerMemory
+        --memory $ContainerMemory `
         --os-type Linux
 
     if ($LASTEXITCODE -ne 0) {
